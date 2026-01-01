@@ -111,20 +111,19 @@ in
     EDITOR = "nano";
   };
 
-  # Nix configuration - disabled to avoid clobbering existing nix.conf
-  # Uncomment when ready to manage nix.conf via Home Manager
-  # nix = {
-  #   package = pkgs.nix;
-  #   settings = {
-  #     experimental-features = [ "nix-command" "flakes" ];
-  #     auto-optimise-store = true;
-  #   };
-  #   gc = {
-  #     automatic = true;
-  #     frequency = "weekly";
-  #     options = "--delete-older-than 30d";
-  #   };
-  # };
+  # Nix configuration
+  nix = {
+    package = pkgs.nix;
+    settings = {
+      experimental-features = [ "nix-command" "flakes" ];
+      auto-optimise-store = true;
+    };
+    gc = {
+      automatic = true;
+      frequency = "weekly";
+      options = "--delete-older-than 30d";
+    };
+  };
 
   # Activation scripts for editor configs and automatic maintenance
   home.activation = {
