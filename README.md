@@ -15,7 +15,13 @@ home-manager switch --flake .#smooney
 
 ## Shell Aliases
 
-After switching, these aliases are available:
+Add this line to your `~/.bashrc` to enable the aliases:
+
+```bash
+source ~/.config/home-manager-aliases.sh
+```
+
+After sourcing, these aliases are available:
 
 | Alias | Description |
 |-------|-------------|

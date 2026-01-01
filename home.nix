@@ -111,19 +111,20 @@ in
     EDITOR = "nano";
   };
 
-  # Nix configuration
-  nix = {
-    package = pkgs.nix;
-    settings = {
-      experimental-features = [ "nix-command" "flakes" ];
-      auto-optimise-store = true;
-    };
-    gc = {
-      automatic = true;
-      frequency = "weekly";
-      options = "--delete-older-than 30d";
-    };
-  };
+  # Nix configuration - disabled to avoid clobbering existing nix.conf
+  # Uncomment when ready to manage nix.conf via Home Manager
+  # nix = {
+  #   package = pkgs.nix;
+  #   settings = {
+  #     experimental-features = [ "nix-command" "flakes" ];
+  #     auto-optimise-store = true;
+  #   };
+  #   gc = {
+  #     automatic = true;
+  #     frequency = "weekly";
+  #     options = "--delete-older-than 30d";
+  #   };
+  # };
 
   # Activation scripts for editor configs and automatic maintenance
   home.activation = {
@@ -172,36 +173,34 @@ in
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 
-  # Shell configuration with aliases
-  programs.bash = {
-    enable = true;
-    shellAliases = {
-      # Home Manager operations
-      hms = "home-manager switch --flake ~/repos/dotfiles#smooney";
-      hmu = "nix flake update --flake ~/repos/dotfiles";
-      hmg = "home-manager generations";
+  # Shell aliases - written to a file you can source from .bashrc
+  # Add this to your .bashrc: source ~/.config/home-manager-aliases.sh
+  home.file.".config/home-manager-aliases.sh".text = ''
+    # Home Manager operations
+    alias hms="home-manager switch --flake ~/repos/dotfiles#smooney"
+    alias hmu="nix flake update --flake ~/repos/dotfiles"
+    alias hmg="home-manager generations"
 
-      # Update and switch in one command
-      hmus = "nix flake update --flake ~/repos/dotfiles && home-manager switch --flake ~/repos/dotfiles#smooney";
+    # Update and switch in one command
+    alias hmus="nix flake update --flake ~/repos/dotfiles && home-manager switch --flake ~/repos/dotfiles#smooney"
 
-      # Garbage collection
-      hmgc = "nix-collect-garbage";
-      hmgc-old = "nix-collect-garbage --delete-old";
-      hmgc-30d = "nix-collect-garbage --delete-older-than 30d";
+    # Garbage collection
+    alias hmgc="nix-collect-garbage"
+    alias hmgc-old="nix-collect-garbage --delete-old"
+    alias hmgc-30d="nix-collect-garbage --delete-older-than 30d"
 
-      # Store optimization
-      hmopt = "nix store optimise";
+    # Store optimization
+    alias hmopt="nix store optimise"
 
-      # Full cleanup (gc + optimize)
-      hmclean = "nix-collect-garbage --delete-older-than 7d && nix store optimise";
+    # Full cleanup (gc + optimize)
+    alias hmclean="nix-collect-garbage --delete-older-than 7d && nix store optimise"
 
-      # Show disk usage
-      hmdu = "nix path-info -Sh ~/.nix-profile";
+    # Show disk usage
+    alias hmdu="nix path-info -Sh ~/.nix-profile"
 
-      # List what would be garbage collected
-      hmgc-dry = "nix-collect-garbage --dry-run";
-    };
-  };
+    # List what would be garbage collected
+    alias hmgc-dry="nix-collect-garbage --dry-run"
+  '';
 
   programs.git = {
     enable = true;
