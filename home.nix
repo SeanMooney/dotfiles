@@ -11,13 +11,13 @@ let
     ripgrep
     fd
     codespell
+    bat       # better cat with syntax highlighting
+    eza       # modern ls replacement with git integration
   ];
 
   systemToolPkgs = with pkgs; [
     htop
-    atop
     lnav
-    tree
     jq
     gnumake
   ];
@@ -53,13 +53,6 @@ let
     hugo
   ];
 
-  idePkgs = with pkgs; [
-    vscode
-  ];
-
-  infraPkgs = with pkgs; [
-    packer
-  ];
 in
 {
   targets.genericLinux.enable = true;
@@ -100,11 +93,35 @@ in
     devToolPkgs ++ 
     chatPkgs ++ 
     langPkgs ++ 
-    docPkgs ++ 
-    idePkgs ++ 
-    infraPkgs;
+    docPkgs;
 
   home.file = {
+    # Allowed signers file for SSH commit verification
+    ".config/git/allowed_signers".text = ''
+      work@seanmooney.info ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDUyOgpeDn3nHO//e3SVPS3XqM7CcWEJDp+wc7OaGzA3 sean@p50
+    '';
+    
+    # Nano configuration
+    ".nanorc".text = ''
+      # Remember search/replace strings for next session
+      set historylog
+      
+      # Enable vim-style lock files
+      set locking
+      
+      # Use codespell as spell checker
+      set speller "codespell -i2"
+      
+      # Show state flags in title bar (I=autoindent, M=mark, etc.)
+      set stateflags
+      
+      # Tab settings
+      set tabsize 4
+      set tabstospaces
+      
+      # Syntax highlighting
+      include "${pkgs.nano}/share/nano/*.nanorc"
+    '';
   };
 
   home.sessionVariables = {
@@ -192,7 +209,13 @@ in
       tb = "nc termbin.com 9999";
       ocl = "oc login -u kubeadmin -p tester https://api.crc.testing:6443";
       claude = "/home/smooney/.claude/local/claude";
-      ls = "ls --color=auto";
+      
+      # Modern CLI replacements
+      ls = "eza --color=auto";
+      ll = "eza -la --git";
+      la = "eza -a";
+      tree = "eza --tree";
+      cat = "bat --paging=never";
 
       # Home Manager aliases
       hms = "home-manager switch --flake ~/repos/dotfiles#smooney";
@@ -210,7 +233,6 @@ in
     };
 
     sessionVariables = {
-      GPG_TTY = "$(tty)";
       KUBE_EDITOR = "nano";
       LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
       NPM_PACKAGES = "$HOME/.local/npm-packages";
@@ -252,13 +274,71 @@ in
 
   programs.git = {
     enable = true;
+    
+    # SSH key signing
     signing = {
-      key = "69505A0130F29B39";
-      signByDefault = false;
+      key = "~/.ssh/id_ed25519.pub";
+      signByDefault = true;
     };
+    
     settings = {
       user.name = "Sean Mooney";
+      user.email = "work@seanmooney.info";
+      
+      # SSH signing format
+      gpg.format = "ssh";
+      gpg.ssh.allowedSignersFile = "~/.config/git/allowed_signers";
+      
+      # Branch defaults
+      init.defaultBranch = "master";
+      push.autoSetupRemote = true;
+      
+      # Rebase workflow settings
+      pull.ff = "only";
+      rebase.autoStash = true;
+      rebase.autoSquash = true;
+      rebase.updateRefs = true;
+      
+      # Better merge conflict markers
+      merge.conflictStyle = "zdiff3";
+      
+      # Cleanup stale remote branches
+      fetch.prune = true;
+      fetch.pruneTags = true;
+      
+      # Remember conflict resolutions
+      rerere.enabled = true;
+      rerere.autoUpdate = true;
+      
+      # Diff improvements
+      diff.algorithm = "histogram";
+      diff.colorMoved = "default";
+      
       core.editor = "nano";
+      
+      # Git aliases
+      alias = {
+        st = "status -sb";
+        co = "checkout";
+        br = "branch";
+        ci = "commit";
+        unstage = "reset HEAD --";
+        last = "log -1 HEAD";
+        lg = "log --oneline --graph --decorate -20";
+        amend = "commit --amend --no-edit";
+        wip = "commit -am 'WIP'";
+      };
+    };
+  };
+  
+  # Delta for better git diffs
+  programs.delta = {
+    enable = true;
+    enableGitIntegration = true;
+    options = {
+      navigate = true;
+      side-by-side = true;
+      line-numbers = true;
     };
   };
 
