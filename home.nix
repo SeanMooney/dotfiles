@@ -172,35 +172,83 @@ in
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 
-  # Shell aliases - written to a file you can source from .bashrc
-  # Add this to your .bashrc: source ~/.config/home-manager-aliases.sh
-  home.file.".config/home-manager-aliases.sh".text = ''
-    # Home Manager operations
-    alias hms="home-manager switch --flake ~/repos/dotfiles#smooney"
-    alias hmu="nix flake update ~/repos/dotfiles"
-    alias hmg="home-manager --flake ~/repos/dotfiles#smooney generations"
-    alias hmn="home-manager --flake ~/repos/dotfiles#smooney news"
+  # Bash configuration
+  programs.bash = {
+    enable = true;
 
-    # Update and switch in one command
-    alias hmus="nix flake update ~/repos/dotfiles && home-manager switch --flake ~/repos/dotfiles#smooney"
+    historyControl = [ "ignoreboth" ];
+    historySize = 1000;
+    historyFileSize = 2000;
 
-    # Garbage collection
-    alias hmgc="nix-collect-garbage"
-    alias hmgc-old="nix-collect-garbage --delete-old"
-    alias hmgc-30d="nix-collect-garbage --delete-older-than 30d"
+    shellOptions = [
+      "histappend"
+      "checkwinsize"
+    ];
 
-    # Store optimization
-    alias hmopt="nix store optimise"
+    shellAliases = {
+      # Custom aliases
+      ipmi = "ipmitool -U admin -P tester -I lanplus -H";
+      clear-journal = "sudo journalctl --flush --rotate && sudo journalctl --vacuum-time=7d";
+      tb = "nc termbin.com 9999";
+      ocl = "oc login -u kubeadmin -p tester https://api.crc.testing:6443";
+      claude = "/home/smooney/.claude/local/claude";
+      ls = "ls --color=auto";
 
-    # Full cleanup (gc + optimize)
-    alias hmclean="nix-collect-garbage --delete-older-than 7d && nix store optimise"
+      # Home Manager aliases
+      hms = "home-manager switch --flake ~/repos/dotfiles#smooney";
+      hmu = "nix flake update ~/repos/dotfiles";
+      hmus = "nix flake update ~/repos/dotfiles && home-manager switch --flake ~/repos/dotfiles#smooney";
+      hmg = "home-manager --flake ~/repos/dotfiles#smooney generations";
+      hmn = "home-manager --flake ~/repos/dotfiles#smooney news";
+      hmgc = "nix-collect-garbage";
+      hmgc-old = "nix-collect-garbage --delete-old";
+      hmgc-30d = "nix-collect-garbage --delete-older-than 30d";
+      hmopt = "nix store optimise";
+      hmclean = "nix-collect-garbage --delete-older-than 7d && nix store optimise";
+      hmdu = "nix path-info -Sh ~/.nix-profile";
+      hmgc-dry = "nix-collect-garbage --dry-run";
+    };
 
-    # Show disk usage
-    alias hmdu="nix path-info -Sh ~/.nix-profile"
+    sessionVariables = {
+      GPG_TTY = "$(tty)";
+      KUBE_EDITOR = "nano";
+      LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
+      NPM_PACKAGES = "$HOME/.local/npm-packages";
+    };
 
-    # List what would be garbage collected
-    alias hmgc-dry="nix-collect-garbage --dry-run"
-  '';
+    profileExtra = ''
+      # Login shell extras
+      [ -d "$HOME/bin" ] && PATH="$HOME/bin:$PATH"
+    '';
+
+    initExtra = ''
+      # PATH additions
+      export PATH="$HOME/.local/bin:$PATH"
+      export PATH="$HOME/go/bin:$PATH"
+      export PATH="$HOME/.cargo/bin:$PATH"
+      export PATH="$NPM_PACKAGES/bin:$PATH"
+      export PATH="$HOME/.claude/local:$PATH"
+      export PATH="$HOME/.opencode/bin:$PATH"
+
+      # nvm setup (if installed)
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+      # CRC/OpenShift setup
+      command -v crc &>/dev/null && eval "$(crc oc-env)"
+      [ -f "/home/smooney/.crc/machines/crc/kubeconfig" ] && export KUBECONFIG="/home/smooney/.crc/machines/crc/kubeconfig"
+
+      # Flux completion
+      command -v flux &>/dev/null && . <(flux completion bash)
+
+      # Ghostty terminal fix
+      [[ "$TERM_PROGRAM" == "ghostty" ]] && export TERM=xterm-256color
+
+      # Source secrets if present
+      [ -f "$HOME/.secrets" ] && . "$HOME/.secrets"
+    '';
+  };
 
   programs.git = {
     enable = true;
