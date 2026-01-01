@@ -334,7 +334,7 @@ in
   # Delta for better git diffs
   programs.delta = {
     enable = true;
-    enableGitIntegration = true;
+    enableGitIntegration = false;
     options = {
       navigate = true;
       side-by-side = true;
