@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-stable, ... }:
+{ config, pkgs, pkgs-stable, lib, ... }:
 
 let
   # Package groups for organization
@@ -41,7 +41,7 @@ let
   langPkgs = with pkgs; [
     gcc
     go_1_24
-    (hiPrio clang)
+    (lib.hiPrio clang)
     llvmPackages.bintools
     rustup
     zig
@@ -120,7 +120,7 @@ in
     };
     gc = {
       automatic = true;
-      frequency = "weekly";
+      dates = "weekly";
       options = "--delete-older-than 30d";
     };
   };
@@ -203,13 +203,13 @@ in
 
   programs.git = {
     enable = true;
-    userName  = "Sean Mooney";
-    extraConfig = {
-        core = { editor = "nano"; };
-    };
     signing = {
       key = "69505A0130F29B39";
       signByDefault = false;
+    };
+    settings = {
+      user.name = "Sean Mooney";
+      core.editor = "nano";
     };
   };
 
