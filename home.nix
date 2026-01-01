@@ -178,7 +178,8 @@ in
     # Home Manager operations
     alias hms="home-manager switch --flake ~/repos/dotfiles#smooney"
     alias hmu="nix flake update ~/repos/dotfiles"
-    alias hmg="home-manager generations"
+    alias hmg="home-manager --flake ~/repos/dotfiles#smooney generations"
+    alias hmn="home-manager --flake ~/repos/dotfiles#smooney news"
 
     # Update and switch in one command
     alias hmus="nix flake update ~/repos/dotfiles && home-manager switch --flake ~/repos/dotfiles#smooney"
