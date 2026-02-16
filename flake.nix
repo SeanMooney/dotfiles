@@ -13,15 +13,21 @@
 
   outputs = { self, nixpkgs, nixpkgs-stable, home-manager, ... }:
     let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-      pkgs-stable = nixpkgs-stable.legacyPackages.${system};
-    in {
-      homeConfigurations."smooney" = home-manager.lib.homeManagerConfiguration {
+      users = {
+        smooney = { system = "x86_64-linux"; };
+        sean    = { system = "x86_64-linux"; };
+      };
+
+      mkHome = username: { system }: let
+        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs-stable = nixpkgs-stable.legacyPackages.${system};
+      in home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        extraSpecialArgs = { inherit pkgs-stable; };
+        extraSpecialArgs = { inherit pkgs-stable username system; };
         modules = [ ./home.nix ];
       };
+    in {
+      homeConfigurations = builtins.mapAttrs mkHome users;
     };
 }
 

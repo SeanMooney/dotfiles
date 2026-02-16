@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-stable, lib, ... }:
+{ config, pkgs, pkgs-stable, lib, username, system, ... }:
 
 let
   # Package groups for organization
@@ -55,10 +55,13 @@ let
 
 in
 {
-  targets.genericLinux.enable = true;
+  targets.genericLinux.enable = (builtins.match ".*-linux" system) != null;
 
-  home.username = "smooney";
-  home.homeDirectory = "/home/smooney";
+  home.username = username;
+  home.homeDirectory =
+    if (builtins.match ".*-darwin" system) != null
+    then "/Users/${username}"
+    else "/home/${username}";
 
   # This value determines the Home Manager release that your configuration is
   # compatible with. This helps avoid breakage when a new Home Manager release
@@ -208,7 +211,7 @@ in
       clear-journal = "sudo journalctl --flush --rotate && sudo journalctl --vacuum-time=7d";
       tb = "nc termbin.com 9999";
       ocl = "oc login -u kubeadmin -p tester https://api.crc.testing:6443";
-      claude = "/home/smooney/.claude/local/claude";
+      claude = "${config.home.homeDirectory}/.claude/local/claude";
       
       # Modern CLI replacements
       ls = "eza --color=auto";
@@ -218,11 +221,11 @@ in
       cat = "bat --paging=never";
 
       # Home Manager aliases
-      hms = "home-manager switch --flake ~/repos/dotfiles#smooney";
+      hms = "home-manager switch --flake ~/repos/dotfiles#${username}";
       hmu = "nix flake update ~/repos/dotfiles";
-      hmus = "nix flake update ~/repos/dotfiles && home-manager switch --flake ~/repos/dotfiles#smooney";
-      hmg = "home-manager --flake ~/repos/dotfiles#smooney generations";
-      hmn = "home-manager --flake ~/repos/dotfiles#smooney news";
+      hmus = "nix flake update ~/repos/dotfiles && home-manager switch --flake ~/repos/dotfiles#${username}";
+      hmg = "home-manager --flake ~/repos/dotfiles#${username} generations";
+      hmn = "home-manager --flake ~/repos/dotfiles#${username} news";
       hmgc = "nix-collect-garbage";
       hmgc-old = "nix-collect-garbage --delete-old";
       hmgc-30d = "nix-collect-garbage --delete-older-than 30d";
@@ -259,7 +262,7 @@ in
 
       # CRC/OpenShift setup
       command -v crc &>/dev/null && eval "$(crc oc-env)"
-      [ -f "/home/smooney/.crc/machines/crc/kubeconfig" ] && export KUBECONFIG="/home/smooney/.crc/machines/crc/kubeconfig"
+      [ -f "${config.home.homeDirectory}/.crc/machines/crc/kubeconfig" ] && export KUBECONFIG="${config.home.homeDirectory}/.crc/machines/crc/kubeconfig"
 
       # Flux completion
       command -v flux &>/dev/null && . <(flux completion bash)
