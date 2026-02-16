@@ -18,6 +18,7 @@ let
 
   systemToolPkgs = with pkgs; [
     htop
+    btop
     lnav
     jq
     gnumake
@@ -31,9 +32,8 @@ let
     glab
     shellcheck
     uv
-    sqlite
     virt-manager
-    sphinx
+    pre-commit
   ];
 
   chatPkgs = with pkgs; [
@@ -53,6 +53,11 @@ let
   docPkgs = with pkgs; [
     multimarkdown
     hugo
+  ];
+
+  nixToolPkgs = with pkgs; [
+    nix-output-monitor
+    comma
   ];
 
 in
@@ -98,7 +103,8 @@ in
     devToolPkgs ++
     chatPkgs ++
     langPkgs ++
-    docPkgs;
+    docPkgs ++
+    nixToolPkgs;
 
   home.file = {
     # Allowed signers file for SSH commit verification
@@ -276,6 +282,9 @@ in
 
       # Source secrets if present
       [ -f "$HOME/.secrets" ] && . "$HOME/.secrets"
+
+      # uv completions
+      command -v uv &>/dev/null && eval "$(uv generate-shell-completion bash)"
     '';
   };
 
