@@ -20,6 +20,7 @@ let
     lnav
     jq
     gnumake
+    openssh
   ];
 
   devToolPkgs = with pkgs; [
@@ -151,7 +152,8 @@ in
     cloneNvimConfig = config.lib.dag.entryAfter [ "writeBoundary" ] ''
       if [ ! -d "$HOME/.config/nvim/.git" ]; then
         echo "Cloning nvim config..."
-        $DRY_RUN_CMD ${pkgs.git}/bin/git clone \
+        $DRY_RUN_CMD GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh" \
+          ${pkgs.git}/bin/git clone \
           git@github.com:SeanMooney/nvim-config.git \
           "$HOME/.config/nvim"
       fi
@@ -161,7 +163,8 @@ in
     cloneEmacsConfig = config.lib.dag.entryAfter [ "writeBoundary" ] ''
       if [ ! -d "$HOME/.config/emacs/.git" ]; then
         echo "Cloning emacs config..."
-        $DRY_RUN_CMD ${pkgs.git}/bin/git clone \
+        $DRY_RUN_CMD GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh" \
+          ${pkgs.git}/bin/git clone \
           git@github.com:SeanMooney/emacs.git \
           "$HOME/.config/emacs"
       fi
