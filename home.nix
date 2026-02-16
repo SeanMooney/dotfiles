@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-stable, lib, username, system, ... }:
+{ config, pkgs, pkgs-stable, llm-pkgs, lib, username, system, ... }:
 
 let
   # Package groups for organization
@@ -37,6 +37,10 @@ let
 
   chatPkgs = with pkgs; [
     weechat
+  ];
+
+  aiToolPkgs = [
+    llm-pkgs.droid
   ];
 
   langPkgs = with pkgs; [
@@ -90,13 +94,14 @@ in
 
   nixpkgs.config.allowUnfreePredicate = _: true;
 
-  home.packages = 
-    editorPkgs ++ 
-    editorToolPkgs ++ 
-    systemToolPkgs ++ 
-    devToolPkgs ++ 
-    chatPkgs ++ 
-    langPkgs ++ 
+  home.packages =
+    editorPkgs ++
+    editorToolPkgs ++
+    systemToolPkgs ++
+    devToolPkgs ++
+    chatPkgs ++
+    aiToolPkgs ++
+    langPkgs ++
     docPkgs;
 
   home.file = {
