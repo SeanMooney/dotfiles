@@ -5,6 +5,7 @@ let
   editorPkgs = with pkgs; [
     nano
     neovim
+    emacs
   ];
 
   editorToolPkgs = with pkgs; [
