@@ -9,11 +9,9 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    llm-agents.url = "github:numtide/llm-agents.nix";
   };
 
-  outputs = { self, nixpkgs, nixpkgs-stable, home-manager, llm-agents, ... }:
+  outputs = { self, nixpkgs, nixpkgs-stable, home-manager, ... }:
     let
       users = {
         smooney = { system = "x86_64-linux"; };
@@ -23,10 +21,9 @@
       mkHome = username: { system }: let
         pkgs = nixpkgs.legacyPackages.${system};
         pkgs-stable = nixpkgs-stable.legacyPackages.${system};
-        llm-pkgs = llm-agents.packages.${system};
       in home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        extraSpecialArgs = { inherit pkgs-stable llm-pkgs username system; };
+        extraSpecialArgs = { inherit pkgs-stable username system; };
         modules = [ ./home.nix ];
       };
     in {

@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-stable, llm-pkgs, lib, username, system, ... }:
+{ config, pkgs, pkgs-stable, lib, username, system, ... }:
 
 let
   # Package groups for organization
@@ -37,12 +37,6 @@ let
 
   chatPkgs = with pkgs; [
     weechat
-  ];
-
-  aiToolPkgs = [
-    (llm-pkgs.droid.overrideAttrs (oldAttrs: {
-      doInstallCheck = false;
-    }))
   ];
 
   langPkgs = with pkgs; [
@@ -102,7 +96,6 @@ in
     systemToolPkgs ++
     devToolPkgs ++
     chatPkgs ++
-    aiToolPkgs ++
     langPkgs ++
     docPkgs;
 
