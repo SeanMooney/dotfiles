@@ -40,7 +40,9 @@ let
   ];
 
   aiToolPkgs = [
-    llm-pkgs.droid
+    (llm-pkgs.droid.overrideAttrs (oldAttrs: {
+      doInstallCheck = false;
+    }))
   ];
 
   langPkgs = with pkgs; [
