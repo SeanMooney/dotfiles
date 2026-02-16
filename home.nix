@@ -225,8 +225,8 @@ in
 
       # Home Manager aliases
       hms = "home-manager switch --flake ~/repos/dotfiles#${username}";
-      hmu = "nix flake update ~/repos/dotfiles";
-      hmus = "nix flake update ~/repos/dotfiles && home-manager switch --flake ~/repos/dotfiles#${username}";
+      hmu = "(cd ~/repos/dotfiles && nix flake update)";
+      hmus = "(cd ~/repos/dotfiles && nix flake update) && home-manager switch --flake ~/repos/dotfiles#${username}";
       hmg = "home-manager --flake ~/repos/dotfiles#${username} generations";
       hmn = "home-manager --flake ~/repos/dotfiles#${username} news";
       hmgc = "nix-collect-garbage";
