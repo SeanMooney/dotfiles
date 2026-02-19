@@ -34,10 +34,13 @@ let
     uv
     virt-manager
     pre-commit
+    nix-direnv
+    direnv
   ];
 
   chatPkgs = with pkgs; [
     weechat
+    halloy
   ];
 
   langPkgs = with pkgs; [
@@ -221,7 +224,6 @@ in
       clear-journal = "sudo journalctl --flush --rotate && sudo journalctl --vacuum-time=7d";
       tb = "nc termbin.com 9999";
       ocl = "oc login -u kubeadmin -p tester https://api.crc.testing:6443";
-      claude = "${config.home.homeDirectory}/.claude/local/claude";
       
       # Modern CLI replacements
       ls = "eza --color=auto";
@@ -276,6 +278,9 @@ in
 
       # Flux completion
       command -v flux &>/dev/null && . <(flux completion bash)
+
+      # GPG passphrase prompt in terminal
+      export GPG_TTY=$(tty)
 
       # Ghostty terminal fix
       [[ "$TERM_PROGRAM" == "ghostty" ]] && export TERM=xterm-256color
