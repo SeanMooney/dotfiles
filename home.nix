@@ -153,6 +153,15 @@ in
     EDITOR = "nano";
   };
 
+  home.sessionPath = [
+    "$HOME/.local/bin"
+    "$HOME/go/bin"
+    "$HOME/.cargo/bin"
+    "$HOME/.local/npm-packages/bin"
+    "$HOME/.claude/local"
+    "$HOME/.opencode/bin"
+  ];
+
   # Nix configuration
   nix = {
     package = pkgs.nix;
@@ -281,14 +290,6 @@ in
     '';
 
     initExtra = ''
-      # PATH additions
-      export PATH="$HOME/.local/bin:$PATH"
-      export PATH="$HOME/go/bin:$PATH"
-      export PATH="$HOME/.cargo/bin:$PATH"
-      export PATH="$NPM_PACKAGES/bin:$PATH"
-      export PATH="$HOME/.claude/local:$PATH"
-      export PATH="$HOME/.opencode/bin:$PATH"
-
       # macOS: Add GNU coreutils to PATH (with 'g' prefix)
       # This provides commands like gls, gcat, gfind, etc.
       # To use without 'g' prefix, add gnubin dirs to PATH first:
