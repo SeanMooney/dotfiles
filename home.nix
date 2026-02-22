@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-stable, lib, username, system, ... }:
+{ config, pkgs, pkgs-stable, lib, username, system, configName, ... }:
 
 let
   # Package groups for organization
@@ -32,10 +32,19 @@ let
     glab
     shellcheck
     uv
-    virt-manager
     pre-commit
     nix-direnv
     direnv
+  ];
+
+  linuxOnlyPkgs = with pkgs; [
+    virt-manager
+  ];
+
+  darwinOnlyPkgs = with pkgs; [
+    coreutils     # GNU core utilities (gls, gcat, etc.)
+    findutils     # GNU find, xargs, locate
+    watch         # execute a program periodically, showing output fullscreen
   ];
 
   chatPkgs = with pkgs; [
@@ -82,7 +91,7 @@ in
   # release notes.
   home.stateVersion = "22.11"; # Please read the comment before changing.
 
-  nixpkgs.overlays = [
+  nixpkgs.overlays = lib.optionals ((builtins.match ".*-linux" system) != null) [
     (self: super:
       {
         weechat = super.weechat.override {
@@ -107,7 +116,9 @@ in
     chatPkgs ++
     langPkgs ++
     docPkgs ++
-    nixToolPkgs;
+    nixToolPkgs ++
+    (lib.optionals pkgs.stdenv.isLinux linuxOnlyPkgs) ++
+    (lib.optionals pkgs.stdenv.isDarwin darwinOnlyPkgs);
 
   home.file = {
     # Allowed signers file for SSH commit verification
@@ -219,12 +230,6 @@ in
     ];
 
     shellAliases = {
-      # Custom aliases
-      ipmi = "ipmitool -U admin -P tester -I lanplus -H";
-      clear-journal = "sudo journalctl --flush --rotate && sudo journalctl --vacuum-time=7d";
-      tb = "nc termbin.com 9999";
-      ocl = "oc login -u kubeadmin -p tester https://api.crc.testing:6443";
-      
       # Modern CLI replacements
       ls = "eza --color=auto";
       ll = "eza -la --git";
@@ -233,11 +238,11 @@ in
       cat = "bat --paging=never";
 
       # Home Manager aliases
-      hms = "home-manager switch --flake ~/repos/dotfiles#${username}";
+      hms = "home-manager switch --flake ~/repos/dotfiles#${configName}";
       hmu = "(cd ~/repos/dotfiles && nix flake update)";
-      hmus = "(cd ~/repos/dotfiles && nix flake update) && home-manager switch --flake ~/repos/dotfiles#${username}";
-      hmg = "home-manager --flake ~/repos/dotfiles#${username} generations";
-      hmn = "home-manager --flake ~/repos/dotfiles#${username} news";
+      hmus = "(cd ~/repos/dotfiles && nix flake update) && home-manager switch --flake ~/repos/dotfiles#${configName}";
+      hmg = "home-manager --flake ~/repos/dotfiles#${configName} generations";
+      hmn = "home-manager --flake ~/repos/dotfiles#${configName} news";
       hmgc = "nix-collect-garbage";
       hmgc-old = "nix-collect-garbage --delete-old";
       hmgc-30d = "nix-collect-garbage --delete-older-than 30d";
@@ -245,12 +250,29 @@ in
       hmclean = "nix-collect-garbage --delete-older-than 7d && nix store optimise";
       hmdu = "nix path-info -Sh ~/.nix-profile";
       hmgc-dry = "nix-collect-garbage --dry-run";
+
+      # Other common aliases
+      tb = "nc termbin.com 9999";
+      ocl = "oc login -u kubeadmin -p tester https://api.crc.testing:6443";
+    } // lib.optionalAttrs pkgs.stdenv.isLinux {
+      # Linux-only aliases
+      ipmi = "ipmitool -U admin -P tester -I lanplus -H";
+      clear-journal = "sudo journalctl --flush --rotate && sudo journalctl --vacuum-time=7d";
+    } // lib.optionalAttrs pkgs.stdenv.isDarwin {
+      # macOS-only aliases
+      flush-dns = "sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder";
+      show-hidden = "defaults write com.apple.finder AppleShowAllFiles YES; killall Finder";
+      hide-hidden = "defaults write com.apple.finder AppleShowAllFiles NO; killall Finder";
+      # Clipboard aliases for consistency with Linux (xclip-style)
+      xclip = "pbcopy";
+      xsel = "pbcopy";
     };
 
     sessionVariables = {
       KUBE_EDITOR = "nano";
-      LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
       NPM_PACKAGES = "$HOME/.local/npm-packages";
+    } // lib.optionalAttrs pkgs.stdenv.isLinux {
+      LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
     };
 
     profileExtra = ''
@@ -266,6 +288,11 @@ in
       export PATH="$NPM_PACKAGES/bin:$PATH"
       export PATH="$HOME/.claude/local:$PATH"
       export PATH="$HOME/.opencode/bin:$PATH"
+
+      # macOS: Add GNU coreutils to PATH (with 'g' prefix)
+      # This provides commands like gls, gcat, gfind, etc.
+      # To use without 'g' prefix, add gnubin dirs to PATH first:
+      # export PATH="$HOME/.nix-profile/libexec/gnubin:$PATH"
 
       # nvm setup (if installed)
       export NVM_DIR="$HOME/.nvm"
