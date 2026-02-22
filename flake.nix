@@ -11,7 +11,13 @@
     };
   };
 
-  outputs = { self, nixpkgs, nixpkgs-stable, home-manager, ... }:
+  outputs =
+    {
+      nixpkgs,
+      nixpkgs-stable,
+      home-manager,
+      ...
+    }:
     let
       users = {
         smooney = {
@@ -28,16 +34,28 @@
         };
       };
 
-      mkHome = configName: { username, system }: let
-        pkgs = nixpkgs.legacyPackages.${system};
-        pkgs-stable = nixpkgs-stable.legacyPackages.${system};
-      in home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-        extraSpecialArgs = { inherit pkgs-stable username system configName; inputs = { inherit nixpkgs; }; };
-        modules = [ ./home.nix ];
-      };
-    in {
+      mkHome =
+        configName:
+        { username, system }:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs-stable = nixpkgs-stable.legacyPackages.${system};
+        in
+        home-manager.lib.homeManagerConfiguration {
+          inherit pkgs;
+          extraSpecialArgs = {
+            inherit
+              pkgs-stable
+              username
+              system
+              configName
+              ;
+            inputs = { inherit nixpkgs; };
+          };
+          modules = [ ./home.nix ];
+        };
+    in
+    {
       homeConfigurations = builtins.mapAttrs mkHome users;
     };
 }
-

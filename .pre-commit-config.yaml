@@ -1,0 +1,21 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-json
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: https://github.com/NixOS/nixfmt
+    rev: v1.2.0
+    hooks:
+      - id: nixfmt-nix
+
+  - repo: https://github.com/astro/deadnix
+    rev: v1.3.1
+    hooks:
+      - id: deadnix

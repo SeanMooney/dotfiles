@@ -1,4 +1,13 @@
-{ config, pkgs, pkgs-stable, lib, username, system, configName, inputs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  username,
+  system,
+  configName,
+  inputs,
+  ...
+}:
 
 let
   # Package groups for organization
@@ -12,8 +21,8 @@ let
     ripgrep
     fd
     codespell
-    bat       # better cat with syntax highlighting
-    eza       # modern ls replacement with git integration
+    bat # better cat with syntax highlighting
+    eza # modern ls replacement with git integration
   ];
 
   systemToolPkgs = with pkgs; [
@@ -39,13 +48,13 @@ let
 
   linuxOnlyPkgs = with pkgs; [
     virt-manager
-    weechat  # overlay with wee-slack/highmon only applies on Linux
+    weechat # overlay with wee-slack/highmon only applies on Linux
   ];
 
   darwinOnlyPkgs = with pkgs; [
-    coreutils     # GNU core utilities (gls, gcat, etc.)
-    findutils     # GNU find, xargs, locate
-    watch         # execute a program periodically, showing output fullscreen
+    coreutils # GNU core utilities (gls, gcat, etc.)
+    findutils # GNU find, xargs, locate
+    watch # execute a program periodically, showing output fullscreen
   ];
 
   chatPkgs = with pkgs; [
@@ -78,9 +87,7 @@ in
 
   home.username = username;
   home.homeDirectory =
-    if (builtins.match ".*-darwin" system) != null
-    then "/Users/${username}"
-    else "/home/${username}";
+    if (builtins.match ".*-darwin" system) != null then "/Users/${username}" else "/home/${username}";
 
   # This value determines the Home Manager release that your configuration is
   # compatible with. This helps avoid breakage when a new Home Manager release
@@ -92,58 +99,58 @@ in
   home.stateVersion = "22.11"; # Please read the comment before changing.
 
   nixpkgs.overlays = lib.optionals ((builtins.match ".*-linux" system) != null) [
-    (self: super:
-      {
-        weechat = super.weechat.override {
-          configure = { availablePlugins, ... }: {
+    (_: super: {
+      weechat = super.weechat.override {
+        configure =
+          { ... }:
+          {
             scripts = with super.weechatScripts; [
               wee-slack
               highmon
             ];
           };
-        };
-      }
-    )
+      };
+    })
   ];
 
   nixpkgs.config.allowUnfreePredicate = _: true;
 
   home.packages =
-    editorPkgs ++
-    editorToolPkgs ++
-    systemToolPkgs ++
-    devToolPkgs ++
-    chatPkgs ++
-    langPkgs ++
-    docPkgs ++
-    nixToolPkgs ++
-    (lib.optionals pkgs.stdenv.isLinux linuxOnlyPkgs) ++
-    (lib.optionals pkgs.stdenv.isDarwin darwinOnlyPkgs);
+    editorPkgs
+    ++ editorToolPkgs
+    ++ systemToolPkgs
+    ++ devToolPkgs
+    ++ chatPkgs
+    ++ langPkgs
+    ++ docPkgs
+    ++ nixToolPkgs
+    ++ (lib.optionals pkgs.stdenv.isLinux linuxOnlyPkgs)
+    ++ (lib.optionals pkgs.stdenv.isDarwin darwinOnlyPkgs);
 
   home.file = {
     # Allowed signers file for SSH commit verification
     ".config/git/allowed_signers".text = ''
       work@seanmooney.info ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDUyOgpeDn3nHO//e3SVPS3XqM7CcWEJDp+wc7OaGzA3 sean@p50
     '';
-    
+
     # Nano configuration
     ".nanorc".text = ''
       # Remember search/replace strings for next session
       set historylog
-      
+
       # Enable vim-style lock files
       set locking
-      
+
       # Use codespell as spell checker
       set speller "codespell -i2"
-      
+
       # Show state flags in title bar (I=autoindent, M=mark, etc.)
       set stateflags
-      
+
       # Tab settings
       set tabsize 4
       set tabstospaces
-      
+
       # Syntax highlighting
       include "${pkgs.nano}/share/nano/*.nanorc"
     '';
@@ -153,7 +160,8 @@ in
     EDITOR = "nano";
     KUBE_EDITOR = "nano";
     NPM_PACKAGES = "$HOME/.local/npm-packages";
-  } // lib.optionalAttrs pkgs.stdenv.isLinux {
+  }
+  // lib.optionalAttrs pkgs.stdenv.isLinux {
     LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
   };
 
@@ -171,7 +179,10 @@ in
   nix = {
     package = pkgs.nix;
     settings = {
-      experimental-features = [ "nix-command" "flakes" ];
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
       auto-optimise-store = true;
     };
     gc = lib.mkIf pkgs.stdenv.isLinux {
@@ -270,11 +281,13 @@ in
       # Other common aliases
       tb = "nc termbin.com 9999";
       ocl = "oc login -u kubeadmin -p tester https://api.crc.testing:6443";
-    } // lib.optionalAttrs pkgs.stdenv.isLinux {
+    }
+    // lib.optionalAttrs pkgs.stdenv.isLinux {
       # Linux-only aliases
       ipmi = "ipmitool -U admin -P tester -I lanplus -H";
       clear-journal = "sudo journalctl --flush --rotate && sudo journalctl --vacuum-time=7d";
-    } // lib.optionalAttrs pkgs.stdenv.isDarwin {
+    }
+    // lib.optionalAttrs pkgs.stdenv.isDarwin {
       # macOS-only aliases
       flush-dns = "sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder";
       show-hidden = "defaults write com.apple.finder AppleShowAllFiles YES; killall Finder";
@@ -318,48 +331,48 @@ in
 
   programs.git = {
     enable = true;
-    
+
     # SSH key signing
     signing = {
       key = "~/.ssh/id_ed25519.pub";
       signByDefault = true;
     };
-    
+
     settings = {
       user.name = "Sean Mooney";
       user.email = "work@seanmooney.info";
-      
+
       # SSH signing format
       gpg.format = "ssh";
       gpg.ssh.allowedSignersFile = "~/.config/git/allowed_signers";
-      
+
       # Branch defaults
       init.defaultBranch = "master";
       push.autoSetupRemote = true;
-      
+
       # Rebase workflow settings
       pull.ff = "only";
       rebase.autoStash = true;
       rebase.autoSquash = true;
       rebase.updateRefs = true;
-      
+
       # Better merge conflict markers
       merge.conflictStyle = "zdiff3";
-      
+
       # Cleanup stale remote branches
       fetch.prune = true;
       fetch.pruneTags = true;
-      
+
       # Remember conflict resolutions
       rerere.enabled = true;
       rerere.autoUpdate = true;
-      
+
       # Diff improvements
       diff.algorithm = "histogram";
       diff.colorMoved = "default";
-      
+
       core.editor = "nano";
-      
+
       # Git aliases
       alias = {
         st = "status -sb";
@@ -374,7 +387,7 @@ in
       };
     };
   };
-  
+
   # Delta for better git diffs
   programs.delta = {
     enable = true;
@@ -422,4 +435,3 @@ in
   };
 
 }
-

@@ -54,11 +54,10 @@ They are cloned automatically on first `home-manager switch` but remain fully in
 
 ## Structure
 
-```
+```text
 ~/repos/dotfiles/
 ├── flake.nix       # Flake definition with inputs
 ├── flake.lock      # Pinned versions
 ├── home.nix        # Home Manager configuration
 └── README.md
 ```
-
