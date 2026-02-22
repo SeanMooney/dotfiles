@@ -1,4 +1,4 @@
-{ config, pkgs, pkgs-stable, lib, username, system, configName, ... }:
+{ config, pkgs, pkgs-stable, lib, username, system, configName, inputs, ... }:
 
 let
   # Package groups for organization
@@ -39,6 +39,7 @@ let
 
   linuxOnlyPkgs = with pkgs; [
     virt-manager
+    weechat  # overlay with wee-slack/highmon only applies on Linux
   ];
 
   darwinOnlyPkgs = with pkgs; [
@@ -48,7 +49,6 @@ let
   ];
 
   chatPkgs = with pkgs; [
-    weechat
     halloy
   ];
 
@@ -151,9 +151,14 @@ in
 
   home.sessionVariables = {
     EDITOR = "nano";
+    KUBE_EDITOR = "nano";
+    NPM_PACKAGES = "$HOME/.local/npm-packages";
+  } // lib.optionalAttrs pkgs.stdenv.isLinux {
+    LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
   };
 
   home.sessionPath = [
+    "$HOME/bin"
     "$HOME/.local/bin"
     "$HOME/go/bin"
     "$HOME/.cargo/bin"
@@ -169,11 +174,13 @@ in
       experimental-features = [ "nix-command" "flakes" ];
       auto-optimise-store = true;
     };
-    gc = {
+    gc = lib.mkIf pkgs.stdenv.isLinux {
       automatic = true;
       dates = "weekly";
       options = "--delete-older-than 30d";
     };
+    registry.nixpkgs.flake = inputs.nixpkgs;
+    nixPath = [ "nixpkgs=${inputs.nixpkgs}" ];
   };
 
   # Activation scripts for editor configs and automatic maintenance
@@ -276,18 +283,6 @@ in
       xclip = "pbcopy";
       xsel = "pbcopy";
     };
-
-    sessionVariables = {
-      KUBE_EDITOR = "nano";
-      NPM_PACKAGES = "$HOME/.local/npm-packages";
-    } // lib.optionalAttrs pkgs.stdenv.isLinux {
-      LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
-    };
-
-    profileExtra = ''
-      # Login shell extras
-      [ -d "$HOME/bin" ] && PATH="$HOME/bin:$PATH"
-    '';
 
     initExtra = ''
       # macOS: Add GNU coreutils to PATH (with 'g' prefix)

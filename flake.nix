@@ -33,7 +33,7 @@
         pkgs-stable = nixpkgs-stable.legacyPackages.${system};
       in home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
-        extraSpecialArgs = { inherit pkgs-stable username system configName; };
+        extraSpecialArgs = { inherit pkgs-stable username system configName; inputs = { inherit nixpkgs; }; };
         modules = [ ./home.nix ];
       };
     in {
