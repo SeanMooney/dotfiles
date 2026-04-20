@@ -301,6 +301,15 @@ in
     };
 
     initExtra = ''
+      for _dir in "$HOME/bin" "$HOME/.local/bin" "$HOME/go/bin" "$HOME/.cargo/bin" \
+                  "$HOME/.local/npm-packages/bin" "$HOME/.claude/local" "$HOME/.opencode/bin"; do
+        case ":$PATH:" in
+          *":$_dir:"*) ;;
+          *) export PATH="$_dir:$PATH" ;;
+        esac
+      done
+      unset _dir
+
       # macOS: Add GNU coreutils to PATH (with 'g' prefix)
       # This provides commands like gls, gcat, gfind, etc.
       # To use without 'g' prefix, add gnubin dirs to PATH first:
