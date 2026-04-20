@@ -310,6 +310,26 @@ in
       done
       unset _dir
 
+      # nix.sh (sourced later in .bashrc) always prepends .nix-profile/bin unconditionally.
+      # Use PROMPT_COMMAND so the dedup runs after all shell init is complete.
+      # Starship preserves existing PROMPT_COMMAND via STARSHIP_PROMPT_COMMAND.
+      _dedup_nix_path() {
+        local _nix_bin="$HOME/.nix-profile/bin"
+        local _seen=":"
+        local _p_new=""
+        local _oi="$IFS"
+        IFS=:
+        for _p in $PATH; do
+          if [[ -n "$_p" && "$_p" != "$_nix_bin" && "$_seen" != *":$_p:"* ]]; then
+            [[ -n "$_p_new" ]] && _p_new="$_p_new:$_p" || _p_new="$_p"
+            _seen="$_seen$_p:"
+          fi
+        done
+        IFS="$_oi"
+        export PATH="$_p_new:$_nix_bin"
+      }
+      PROMPT_COMMAND="_dedup_nix_path"
+
       # macOS: Add GNU coreutils to PATH (with 'g' prefix)
       # This provides commands like gls, gcat, gfind, etc.
       # To use without 'g' prefix, add gnubin dirs to PATH first:
