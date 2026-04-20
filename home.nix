@@ -35,13 +35,16 @@ let
   ];
 
   devToolPkgs = with pkgs; [
+    acli
     gh
     git
+    git-crypt
     lazygit
     glab
     shellcheck
     uv
     pre-commit
+    prek
     nix-direnv
     direnv
   ];
@@ -63,7 +66,7 @@ let
 
   langPkgs = with pkgs; [
     gcc
-    go_1_24
+    go_1_25
     (lib.hiPrio clang)
     llvmPackages.bintools
     rustup
