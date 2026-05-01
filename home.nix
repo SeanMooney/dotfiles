@@ -53,6 +53,8 @@ let
   ];
 
   linuxOnlyPkgs = with pkgs; [
+    bubblewrap
+    socat
     virt-manager
     weechat # overlay with wee-slack/highmon only applies on Linux
   ];
