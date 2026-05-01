@@ -82,7 +82,21 @@ let
   nixToolPkgs = with pkgs; [
     nix-output-monitor
     comma
+    nixfmt
   ];
+
+  agentPkgs = with inputs.llm-agents.packages.${system}; [
+    codex
+    pi
+  ];
+
+  homeConfigTarget =
+    if username == "sean" && pkgs.stdenv.isLinux then
+      "sean-linux"
+    else if username == "sean" && pkgs.stdenv.isDarwin then
+      "sean-darwin"
+    else
+      configName;
 
 in
 {
@@ -124,6 +138,7 @@ in
     ++ systemToolPkgs
     ++ devToolPkgs
     ++ chatPkgs
+    ++ agentPkgs
     ++ langPkgs
     ++ docPkgs
     ++ nixToolPkgs
@@ -163,6 +178,8 @@ in
     EDITOR = "nano";
     KUBE_EDITOR = "nano";
     NPM_PACKAGES = "$HOME/.local/npm-packages";
+    PI_CODING_AGENT_DIR = "${config.xdg.configHome}/pi";
+    PI_CODING_AGENT_SESSION_DIR = "${config.xdg.stateHome}/pi/sessions";
   }
   // lib.optionalAttrs pkgs.stdenv.isLinux {
     LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
@@ -221,6 +238,27 @@ in
       fi
     '';
 
+    # Clone pi config if it doesn't exist and create session storage
+    setupPiConfig = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+      export PI_CODING_AGENT_DIR="${config.xdg.configHome}/pi"
+      export PI_CODING_AGENT_SESSION_DIR="${config.xdg.stateHome}/pi/sessions"
+
+      if [ ! -e "$PI_CODING_AGENT_DIR" ]; then
+        echo "Cloning pi config..."
+        export GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh"
+        $DRY_RUN_CMD ${pkgs.git}/bin/git clone \
+          git@github.com:SeanMooney/pi-config.git \
+          "$PI_CODING_AGENT_DIR"
+      elif [ ! -d "$PI_CODING_AGENT_DIR/.git" ]; then
+        echo "Skipping pi config clone: $PI_CODING_AGENT_DIR exists but is not a git checkout"
+      fi
+
+      if [ ! -d "$PI_CODING_AGENT_SESSION_DIR" ]; then
+        echo "Creating pi session storage..."
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p "$PI_CODING_AGENT_SESSION_DIR"
+      fi
+    '';
+
     # Automatic cleanup - runs after every switch, keeps last 5 generations
     cleanupOldGenerations = config.lib.dag.entryAfter [ "writeBoundary" ] ''
       echo "Cleaning up old Home Manager generations (keeping last 5)..."
@@ -268,11 +306,11 @@ in
       cat = "bat --paging=never";
 
       # Home Manager aliases
-      hms = "home-manager switch --flake ~/repos/dotfiles#${configName}";
+      hms = "home-manager switch --flake ~/repos/dotfiles#${homeConfigTarget}";
       hmu = "(cd ~/repos/dotfiles && nix flake update)";
-      hmus = "(cd ~/repos/dotfiles && nix flake update) && home-manager switch --flake ~/repos/dotfiles#${configName}";
-      hmg = "home-manager --flake ~/repos/dotfiles#${configName} generations";
-      hmn = "home-manager --flake ~/repos/dotfiles#${configName} news";
+      hmus = "(cd ~/repos/dotfiles && nix flake update) && home-manager switch --flake ~/repos/dotfiles#${homeConfigTarget}";
+      hmg = "home-manager --flake ~/repos/dotfiles#${homeConfigTarget} generations";
+      hmn = "home-manager --flake ~/repos/dotfiles#${homeConfigTarget} news";
       hmgc = "nix-collect-garbage";
       hmgc-old = "nix-collect-garbage --delete-old";
       hmgc-30d = "nix-collect-garbage --delete-older-than 30d";
