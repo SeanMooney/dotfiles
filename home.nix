@@ -6,6 +6,7 @@
   system,
   configName,
   inputs,
+  genericLinux ? (builtins.match ".*-linux" system) != null,
   ...
 }:
 
@@ -47,6 +48,8 @@ let
     prek
     nix-direnv
     direnv
+    nodejs_24
+    tmux
   ];
 
   linuxOnlyPkgs = with pkgs; [
@@ -100,7 +103,7 @@ let
 
 in
 {
-  targets.genericLinux.enable = (builtins.match ".*-linux" system) != null;
+  targets.genericLinux.enable = genericLinux;
 
   home.username = username;
   home.homeDirectory =
@@ -406,6 +409,7 @@ in
     signing = {
       key = "~/.ssh/id_ed25519.pub";
       signByDefault = true;
+      format = "ssh";
     };
 
     settings = {
@@ -413,7 +417,6 @@ in
       user.email = "work@seanmooney.info";
 
       # SSH signing format
-      gpg.format = "ssh";
       gpg.ssh.allowedSignersFile = "~/.config/git/allowed_signers";
 
       # Branch defaults
