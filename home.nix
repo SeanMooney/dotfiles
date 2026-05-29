@@ -197,6 +197,11 @@ in
         dns_canonicalize_hostname = false
     '';
 
+    ".local/bin/oclr" = {
+      source = ./bin/oclr;
+      executable = true;
+    };
+
     # Nano configuration
     ".nanorc".text = ''
       # Remember search/replace strings for next session
@@ -438,132 +443,6 @@ in
         esac
       fi
       unset _default_kubeconfig _crc_kubeconfig
-
-      oclr() {
-        local _server="" _cluster="" _context="" _target=""
-
-        while [ $# -gt 0 ]; do
-          case "$1" in
-            --server=*)
-              _server="''${1#--server=}"
-              shift
-              ;;
-            --server)
-              if [ $# -lt 2 ]; then
-                printf 'oclr: --server requires a value\n' >&2
-                return 2
-              fi
-              _server="$2"
-              shift 2
-              ;;
-            --cluster=*)
-              _cluster="''${1#--cluster=}"
-              shift
-              ;;
-            --cluster)
-              if [ $# -lt 2 ]; then
-                printf 'oclr: --cluster requires a value\n' >&2
-                return 2
-              fi
-              _cluster="$2"
-              shift 2
-              ;;
-            --context=*)
-              _context="''${1#--context=}"
-              shift
-              ;;
-            --context)
-              if [ $# -lt 2 ]; then
-                printf 'oclr: --context requires a value\n' >&2
-                return 2
-              fi
-              _context="$2"
-              shift 2
-              ;;
-            -h|--help)
-              printf 'usage: oclr [api-host|https://api-host:6443|cluster-name] [oc login args...]\n' >&2
-              printf '       oclr --server=<api-host|https://api-host:6443> [oc login args...]\n' >&2
-              printf '       oclr --cluster=<kubeconfig-cluster-name> [oc login args...]\n' >&2
-              printf '       oclr --context=<kubeconfig-context-name> [oc login args...]\n' >&2
-              printf '       oclr  # use the current kube context cluster\n' >&2
-              return 0
-              ;;
-            --*)
-              break
-              ;;
-            *)
-              _target="$1"
-              shift
-              break
-              ;;
-          esac
-        done
-
-        _oclr_cluster_server() {
-          oc config view --raw -o json \
-            | jq -r --arg name "$1" '.clusters[]? | select(.name == $name) | .cluster.server // empty' \
-            | head -n1
-        }
-
-        _oclr_context_cluster() {
-          oc config view --raw -o json \
-            | jq -r --arg name "$1" '.contexts[]? | select(.name == $name) | .context.cluster // empty' \
-            | head -n1
-        }
-
-        if [ -z "$_server" ]; then
-          if [ -n "$_context" ]; then
-            _cluster="$(_oclr_context_cluster "$_context")"
-            if [ -z "$_cluster" ]; then
-              printf 'oclr: no kubeconfig context named %s\n' "$_context" >&2
-              return 2
-            fi
-          elif [ -z "$_cluster" ] && [ -n "$_target" ]; then
-            case "$_target" in
-              http://*|https://*)
-                _server="$_target"
-                ;;
-              *)
-                _server="$(_oclr_cluster_server "$_target")"
-                if [ -z "$_server" ]; then
-                  _server="$_target"
-                fi
-                ;;
-            esac
-          elif [ -z "$_cluster" ]; then
-            _context="$(oc config current-context 2>/dev/null || true)"
-            if [ -z "$_context" ]; then
-              printf 'oclr: no server, cluster, context, or current kube context found\n' >&2
-              return 2
-            fi
-            _cluster="$(_oclr_context_cluster "$_context")"
-          fi
-        fi
-
-        if [ -z "$_server" ]; then
-          _server="$(_oclr_cluster_server "$_cluster")"
-          if [ -z "$_server" ]; then
-            printf 'oclr: no kubeconfig cluster named %s\n' "$_cluster" >&2
-            return 2
-          fi
-        fi
-
-        case "$_server" in
-          http://*|https://*) ;;
-          *) _server="https://$_server" ;;
-        esac
-
-        local _hostport="''${_server#http://}"
-        _hostport="''${_hostport#https://}"
-        _hostport="''${_hostport%%/*}"
-        if [[ "$_hostport" != *:* ]]; then
-          _server="$_server:6443"
-        fi
-
-        local _token
-        _token="$(${ocpSsoTokenCommand} "$_server")" || return
-        oc login --server="$_server" --token="$_token" "$@"
-      }
 
       # Flux completion
       command -v flux &>/dev/null && . <(flux completion bash)

@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+
+set -o pipefail
+
+usage() {
+    cat >&2 <<'EOF'
+usage: oclr [api-host|https://api-host:6443|cluster-name] [oc login args...]
+       oclr --server=<api-host|https://api-host:6443> [oc login args...]
+       oclr --cluster=<kubeconfig-cluster-name> [oc login args...]
+       oclr --context=<kubeconfig-context-name> [oc login args...]
+       oclr  # use the current kube context cluster
+EOF
+}
+
+require_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        printf 'oclr: required command not found: %s\n' "$1" >&2
+        return 1
+    fi
+}
+
+cluster_server() {
+    oc config view --raw -o json \
+        | jq -r --arg name "$1" '.clusters[]? | select(.name == $name) | .cluster.server // empty' \
+        | head -n1
+}
+
+context_cluster() {
+    oc config view --raw -o json \
+        | jq -r --arg name "$1" '.contexts[]? | select(.name == $name) | .context.cluster // empty' \
+        | head -n1
+}
+
+normalize_server() {
+    local server="$1"
+    local hostport
+
+    case "$server" in
+        http://*|https://*) ;;
+        *) server="https://$server" ;;
+    esac
+
+    hostport="${server#http://}"
+    hostport="${hostport#https://}"
+    hostport="${hostport%%/*}"
+    if [[ "$hostport" != *:* ]]; then
+        server="$server:6443"
+    fi
+
+    printf '%s\n' "$server"
+}
+
+ocp_sso_token() {
+    local user_krb5_config="${XDG_CONFIG_HOME:-$HOME/.config}/krb5/krb5.conf"
+    local krb5_config="$user_krb5_config:/etc/krb5.conf"
+
+    if [ -n "${KRB5_CONFIG:-}" ]; then
+        krb5_config="$user_krb5_config:$KRB5_CONFIG"
+    fi
+
+    env \
+        KRB5_CONFIG="$krb5_config" \
+        GSSAPI_KRB5CONFIG="${GSSAPI_KRB5CONFIG:-krb5-config}" \
+        GSSAPI_COMPILER_ARGS="${GSSAPI_COMPILER_ARGS:--DHAS_GSSAPI_EXT_H}" \
+        uvx --managed-python --python 3.13 --from ocp-sso-token ocp-sso-token "$@"
+}
+
+main() {
+    local server="" cluster="" context="" target="" token
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --server=*)
+                server="${1#--server=}"
+                shift
+                ;;
+            --server)
+                if [ $# -lt 2 ]; then
+                    printf 'oclr: --server requires a value\n' >&2
+                    return 2
+                fi
+                server="$2"
+                shift 2
+                ;;
+            --cluster=*)
+                cluster="${1#--cluster=}"
+                shift
+                ;;
+            --cluster)
+                if [ $# -lt 2 ]; then
+                    printf 'oclr: --cluster requires a value\n' >&2
+                    return 2
+                fi
+                cluster="$2"
+                shift 2
+                ;;
+            --context=*)
+                context="${1#--context=}"
+                shift
+                ;;
+            --context)
+                if [ $# -lt 2 ]; then
+                    printf 'oclr: --context requires a value\n' >&2
+                    return 2
+                fi
+                context="$2"
+                shift 2
+                ;;
+            -h|--help)
+                usage
+                return 0
+                ;;
+            --*)
+                break
+                ;;
+            *)
+                target="$1"
+                shift
+                break
+                ;;
+        esac
+    done
+
+    require_command oc || return 127
+    require_command jq || return 127
+    require_command uv || return 127
+
+    if [ -z "$server" ]; then
+        if [ -n "$context" ]; then
+            cluster="$(context_cluster "$context")"
+            if [ -z "$cluster" ]; then
+                printf 'oclr: no kubeconfig context named %s\n' "$context" >&2
+                return 2
+            fi
+        elif [ -z "$cluster" ] && [ -n "$target" ]; then
+            case "$target" in
+                http://*|https://*)
+                    server="$target"
+                    ;;
+                *)
+                    server="$(cluster_server "$target")"
+                    if [ -z "$server" ]; then
+                        server="$target"
+                    fi
+                    ;;
+            esac
+        elif [ -z "$cluster" ]; then
+            context="$(oc config current-context 2>/dev/null || true)"
+            if [ -z "$context" ]; then
+                printf 'oclr: no server, cluster, context, or current kube context found\n' >&2
+                return 2
+            fi
+            cluster="$(context_cluster "$context")"
+        fi
+    fi
+
+    if [ -z "$server" ]; then
+        server="$(cluster_server "$cluster")"
+        if [ -z "$server" ]; then
+            printf 'oclr: no kubeconfig cluster named %s\n' "$cluster" >&2
+            return 2
+        fi
+    fi
+
+    server="$(normalize_server "$server")"
+    token="$(ocp_sso_token "$server")" || return
+    oc login --server="$server" --token="$token" "$@"
+}
+
+main "$@"
