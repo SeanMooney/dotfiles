@@ -71,7 +71,7 @@ let
 
   langPkgs = with pkgs; [
     gcc
-    go_1_25
+    go_1_26
     (lib.hiPrio clang)
     llvmPackages.bintools
     rustup
