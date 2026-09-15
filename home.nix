@@ -300,8 +300,16 @@ in
         $DRY_RUN_CMD ${pkgs.git}/bin/git clone \
           git@github.com:SeanMooney/pi-config.git \
           "$PI_CODING_AGENT_DIR"
-      elif [ ! -d "$PI_CODING_AGENT_DIR/.git" ]; then
+      elif [ ! -e "$PI_CODING_AGENT_DIR/.git" ]; then
         echo "Skipping pi config clone: $PI_CODING_AGENT_DIR exists but is not a git checkout"
+      fi
+
+      if [ -e "$PI_CODING_AGENT_DIR/.git" ]; then
+        echo "Initializing pinned pi config submodules..."
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/env \
+          GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh" \
+          ${pkgs.git}/bin/git -C "$PI_CODING_AGENT_DIR" \
+          submodule update --init --recursive
       fi
 
       if [ ! -d "$PI_CODING_AGENT_SESSION_DIR" ]; then

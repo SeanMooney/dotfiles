@@ -52,6 +52,23 @@ Neovim and Emacs configs are managed independently:
 
 They are cloned automatically on first `home-manager switch` but remain fully independent afterward.
 
+## Pi Configuration
+
+Home Manager clones the independent Pi configuration repository into
+`$PI_CODING_AGENT_DIR` when it is absent. On each switch, it initializes and
+checks out the submodule revisions recorded by the current Pi configuration
+checkout:
+
+```bash
+git submodule update --init --recursive
+```
+
+This operation does not pull or update the parent Pi configuration repository.
+Fetching missing submodule objects may require network access. A submodule HEAD
+that was manually moved may return to the revision recorded by the parent
+checkout; conflicting local file changes cause the activation to fail instead
+of forcing the checkout.
+
 ## Structure
 
 ```text
