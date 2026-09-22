@@ -6,22 +6,36 @@ Sean Mooney's dotfiles managed with Nix Home Manager and Flakes.
 
 ```bash
 # Clone this repository
-git clone git@github.com:SeanMooney/dotfiles.git ~/repos/dotfiles
+git clone git@github.com:SeanMooney/dotfiles.git
 
-# Apply configuration (also clones editor configs on first run)
-cd ~/repos/dotfiles
-home-manager switch --flake .#smooney
+# Apply configuration from the checkout (which can live anywhere)
+cd dotfiles
+home-manager switch --impure --flake .#smooney
 ```
 
 ## Shell Aliases
 
-Add this line to your `~/.bashrc` to enable the aliases:
+Home Manager manages these aliases in Bash. Open a new shell after switching.
 
-```bash
-source ~/.config/home-manager-aliases.sh
-```
+The initial `home-manager switch --impure --flake .#smooney` records the
+checkout location in `${XDG_STATE_HOME:-~/.local/state}/dotfiles/checkout`
+(using Home Manager's configured `xdg.stateHome`). The aliases use that location
+from any working directory, without searching or assuming a clone layout.
+If you move the checkout, run the switch command from its new location once.
 
-After sourcing, these aliases are available:
+This relies on Home Manager exporting `FLAKE_PATH` during activation. Local
+absolute paths, `.`/`./…`/`../…`, and `path:` versions of those paths are supported.
+Remote flake references and direct generation activation leave any recorded
+location unchanged. Dry runs do not write it.
+
+Configuration-evaluating aliases use `--impure` so builds include current edits
+from the local wee-slack checkout.
+
+On generic Linux, Git activation and SSH commit signing use the host OpenSSH so
+system identity providers such as SSSD can resolve the user. NixOS and macOS use
+Nix OpenSSH.
+
+These aliases are available:
 
 | Alias | Description |
 |-------|-------------|
@@ -69,10 +83,16 @@ that was manually moved may return to the revision recorded by the parent
 checkout; conflicting local file changes cause the activation to fail instead
 of forcing the checkout.
 
+## Checks
+
+Run `python3 tests/test-dotfiles-checkout.py` to evaluate and test the checkout
+hooks and aliases in temporary directories, without activating Home Manager.
+Run `python3 tests/test-activation-ssh.py` to check SSH selection and ordering.
+
 ## Structure
 
 ```text
-~/repos/dotfiles/
+dotfiles/
 ├── flake.nix       # Flake definition with inputs
 ├── flake.lock      # Pinned versions
 ├── home.nix        # Home Manager configuration

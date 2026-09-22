@@ -97,6 +97,8 @@ let
 
   ocpSsoTokenCommand = "env KRB5_CONFIG=${config.xdg.configHome}/krb5/krb5.conf:/etc/krb5.conf GSSAPI_KRB5CONFIG=krb5-config GSSAPI_COMPILER_ARGS='-DHAS_GSSAPI_EXT_H' uvx --managed-python --python 3.13 --from ocp-sso-token ocp-sso-token";
 
+  dotfilesStateFile = "${config.xdg.stateHome}/dotfiles/checkout";
+
   homeConfigTarget =
     if username == "sean" && pkgs.stdenv.isLinux then
       "sean-linux"
@@ -127,7 +129,7 @@ in
       wee-slack-local = super.stdenvNoCC.mkDerivation {
         pname = "wee-slack-local";
         version = "3.0.0-local";
-        src = /home/${username}/repos/wee-slack;
+        src = /home/${username}/repos/github.com/wee-slack/wee-slack;
 
         nativeBuildInputs = [ super.perl ];
         scripts = [ "wee_slack.py" ];
@@ -267,11 +269,48 @@ in
 
   # Activation scripts for editor configs and automatic maintenance
   home.activation = {
+    # Nix Git hardcodes Nix SSH; generic Linux needs host NSS/SSSD support.
+    setupActivationSsh = config.lib.dag.entryBefore [ "writeBoundary" ] ''
+      export GIT_SSH_COMMAND="${if genericLinux then "/usr/bin/ssh" else "${pkgs.openssh}/bin/ssh"}"
+    '';
+
+    # Home Manager exports FLAKE_PATH and starts activation with `cd $HOME`.
+    # Capture relative references via OLDPWD before other hooks can change it.
+    resolveDotfilesCheckout = config.lib.dag.entryBefore [ "writeBoundary" ] ''
+      dotfilesCheckout=""
+      dotfilesRef="''${FLAKE_PATH:-}"
+      case "$dotfilesRef" in
+        path:*) dotfilesRef="''${dotfilesRef#path:}" ;;
+      esac
+      case "$dotfilesRef" in
+        /*|.|..|./*|../*)
+          if [[ "$dotfilesRef" != /* ]]; then
+            dotfilesRef="''${OLDPWD:?Missing activation working directory}/$dotfilesRef"
+          fi
+          if [[ -f "$dotfilesRef/flake.nix" && "$dotfilesRef" != *\?* ]]; then
+            dotfilesCheckout=$(${pkgs.coreutils}/bin/realpath -e -- "$dotfilesRef")
+            case "$dotfilesCheckout" in
+              /nix/store/*) dotfilesCheckout="" ;;
+            esac
+          fi
+          ;;
+      esac
+    '';
+
+    recordDotfilesCheckout = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+      if [[ -n "$dotfilesCheckout" ]]; then
+        run ${pkgs.coreutils}/bin/mkdir -p ${lib.escapeShellArg (builtins.dirOf dotfilesStateFile)}
+        run ${pkgs.bash}/bin/bash -c 'printf "%s\n" "$2" > "$1"' -- \
+          ${lib.escapeShellArg dotfilesStateFile} "$dotfilesCheckout"
+      else
+        echo "No local flake checkout to record; keeping any existing dotfiles path."
+      fi
+    '';
+
     # Clone nvim config if it doesn't exist
     cloneNvimConfig = config.lib.dag.entryAfter [ "writeBoundary" ] ''
       if [ ! -d "$HOME/.config/nvim/.git" ]; then
         echo "Cloning nvim config..."
-        export GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh"
         $DRY_RUN_CMD ${pkgs.git}/bin/git clone \
           git@github.com:SeanMooney/nvim-config.git \
           "$HOME/.config/nvim"
@@ -282,7 +321,6 @@ in
     cloneEmacsConfig = config.lib.dag.entryAfter [ "writeBoundary" ] ''
       if [ ! -d "$HOME/.config/emacs/.git" ]; then
         echo "Cloning emacs config..."
-        export GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh"
         $DRY_RUN_CMD ${pkgs.git}/bin/git clone \
           git@github.com:SeanMooney/emacs.git \
           "$HOME/.config/emacs"
@@ -296,7 +334,6 @@ in
 
       if [ ! -e "$PI_CODING_AGENT_DIR" ]; then
         echo "Cloning pi config..."
-        export GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh"
         $DRY_RUN_CMD ${pkgs.git}/bin/git clone \
           git@github.com:SeanMooney/pi-config.git \
           "$PI_CODING_AGENT_DIR"
@@ -306,9 +343,7 @@ in
 
       if [ -e "$PI_CODING_AGENT_DIR/.git" ]; then
         echo "Initializing pinned pi config submodules..."
-        $DRY_RUN_CMD ${pkgs.coreutils}/bin/env \
-          GIT_SSH_COMMAND="${pkgs.openssh}/bin/ssh" \
-          ${pkgs.git}/bin/git -C "$PI_CODING_AGENT_DIR" \
+        $DRY_RUN_CMD ${pkgs.git}/bin/git -C "$PI_CODING_AGENT_DIR" \
           submodule update --init --recursive
       fi
 
@@ -365,12 +400,12 @@ in
       cat = "bat --paging=never";
 
       # Home Manager aliases
-      hms = "home-manager switch --flake ~/repos/dotfiles#${homeConfigTarget}";
-      hmsf = "home-manager switch --flake ~/repos/dotfiles#${homeConfigTarget} --option eval-cache false";
-      hmu = "(cd ~/repos/dotfiles && nix flake update)";
-      hmus = "(cd ~/repos/dotfiles && nix flake update) && home-manager switch --flake ~/repos/dotfiles#${homeConfigTarget}";
-      hmg = "home-manager --flake ~/repos/dotfiles#${homeConfigTarget} generations";
-      hmn = "home-manager --flake ~/repos/dotfiles#${homeConfigTarget} news";
+      hms = "(_dotfiles_cd && home-manager switch --impure --flake .#${homeConfigTarget})";
+      hmsf = "(_dotfiles_cd && home-manager switch --impure --flake .#${homeConfigTarget} --option eval-cache false)";
+      hmu = "(_dotfiles_cd && nix flake update)";
+      hmus = "(_dotfiles_cd && nix flake update && home-manager switch --impure --flake .#${homeConfigTarget})";
+      hmg = "home-manager generations";
+      hmn = "(_dotfiles_cd && home-manager --impure --flake .#${homeConfigTarget} news)";
       hmgc = "nix-collect-garbage";
       hmgc-old = "nix-collect-garbage --delete-old";
       hmgc-30d = "nix-collect-garbage --delete-older-than 30d";
@@ -400,6 +435,17 @@ in
     };
 
     initExtra = ''
+      _dotfiles_cd() {
+        local checkout
+        if [[ ! -r ${lib.escapeShellArg dotfilesStateFile} ]] ||
+           ! IFS= read -r checkout < ${lib.escapeShellArg dotfilesStateFile} ||
+           [[ ! -f "$checkout/flake.nix" ]]; then
+          echo 'No valid dotfiles checkout recorded. Run home-manager switch --impure --flake .#${homeConfigTarget} from the checkout first.' >&2
+          return 1
+        fi
+        cd -- "$checkout"
+      }
+
       for _dir in "$HOME/bin" "$HOME/.local/bin" "$HOME/go/bin" "$HOME/.cargo/bin" \
                   "$HOME/.local/npm-packages/bin" "$HOME/.claude/local" "$HOME/.opencode/bin"; do
         case ":$PATH:" in
@@ -439,19 +485,6 @@ in
       [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
       [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-      # CRC/OpenShift setup
-      command -v crc &>/dev/null && eval "$(crc oc-env)"
-      [ -d "${config.home.homeDirectory}/.kube" ] || mkdir -p "${config.home.homeDirectory}/.kube"
-      _default_kubeconfig="${config.home.homeDirectory}/.kube/config"
-      _crc_kubeconfig="${config.home.homeDirectory}/.crc/machines/crc/kubeconfig"
-      if [ -f "$_crc_kubeconfig" ]; then
-        case ":''${KUBECONFIG:-$_default_kubeconfig}:" in
-          *":$_crc_kubeconfig:"*) ;;
-          *) export KUBECONFIG="''${KUBECONFIG:-$_default_kubeconfig}:$_crc_kubeconfig" ;;
-        esac
-      fi
-      unset _default_kubeconfig _crc_kubeconfig
-
       # Flux completion
       command -v flux &>/dev/null && . <(flux completion bash)
 
@@ -477,6 +510,7 @@ in
       key = "~/.ssh/id_ed25519.pub";
       signByDefault = true;
       format = "ssh";
+      signer = if genericLinux then "/usr/bin/ssh-keygen" else "${pkgs.openssh}/bin/ssh-keygen";
     };
 
     settings = {
