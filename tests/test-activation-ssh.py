@@ -34,5 +34,9 @@ for name, config in configs.items():
         assert "writeBoundary" in clone["after"]
         assert "GIT_SSH_COMMAND" not in clone["data"]
         subprocess.run(["bash", "-n"], input=clone["data"], text=True, check=True)
+    pi_setup = config["clones"][2]["data"]
+    assert "scripts/install-local-dependencies.sh" in pi_setup
+    assert "--if-missing" in pi_setup
+    assert "/bin/npm" in pi_setup
 
 print("Activation SSH selection, ordering, and shell syntax checks passed.")

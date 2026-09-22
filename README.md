@@ -77,6 +77,10 @@ checkout:
 git submodule update --init --recursive
 ```
 
+It also invokes `scripts/install-local-dependencies.sh --if-missing` from the Pi
+configuration checkout. Run that script without the option to reinstall all
+locked local extension dependencies manually.
+
 This operation does not pull or update the parent Pi configuration repository.
 Fetching missing submodule objects may require network access. A submodule HEAD
 that was manually moved may return to the revision recorded by the parent

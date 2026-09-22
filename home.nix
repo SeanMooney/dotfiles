@@ -345,6 +345,10 @@ in
         echo "Initializing pinned pi config submodules..."
         $DRY_RUN_CMD ${pkgs.git}/bin/git -C "$PI_CODING_AGENT_DIR" \
           submodule update --init --recursive
+        $DRY_RUN_CMD ${pkgs.coreutils}/bin/env \
+          NPM=${pkgs.nodejs_24}/bin/npm \
+          "$PI_CODING_AGENT_DIR/scripts/install-local-dependencies.sh" \
+          --if-missing
       fi
 
       if [ ! -d "$PI_CODING_AGENT_SESSION_DIR" ]; then
