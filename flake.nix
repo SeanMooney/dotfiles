@@ -36,6 +36,7 @@
         smooney = {
           username = "smooney";
           system = "x86_64-linux";
+          systemNssPreload = "/usr/lib64/libnss_sss.so.2";
         };
         sean-linux = {
           username = "sean";
@@ -50,7 +51,12 @@
 
       mkHome =
         configName:
-        { username, system, genericLinux ? (builtins.match ".*-linux" system) != null }:
+        {
+          username,
+          system,
+          genericLinux ? (builtins.match ".*-linux" system) != null,
+          systemNssPreload ? null,
+        }:
         let
           pkgs = nixpkgs.legacyPackages.${system};
           pkgs-stable = nixpkgs-stable.legacyPackages.${system};
@@ -64,6 +70,7 @@
               system
               configName
               genericLinux
+              systemNssPreload
               ;
             inputs = {
               inherit

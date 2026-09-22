@@ -7,6 +7,7 @@
   configName,
   inputs,
   genericLinux ? (builtins.match ".*-linux" system) != null,
+  systemNssPreload ? null,
   ...
 }:
 
@@ -44,7 +45,7 @@ let
     glab
     shellcheck
     uv
-    pre-commit
+    (google-cloud-sdk.withExtraComponents [ google-cloud-sdk.components.gke-gcloud-auth-plugin ])
     prek
     nix-direnv
     direnv
@@ -90,8 +91,23 @@ let
     nixfmt
   ];
 
+  # Kubernetes / OpenShift tooling. `openshift` ships only the `oc` client
+  # (no bundled kubectl), so the standalone kubectl below does not collide.
+  k8sPkgs = with pkgs; [
+    kubectl
+    openshift # provides `oc`
+    kubernetes-helm # `helm`
+    k9s # cluster TUI
+    kubectx # kubectx + kubens
+    stern # multi-pod log tailing
+    fluxcd # `flux`
+    kustomize
+  ];
+
   agentPkgs = with inputs.llm-agents.packages.${system}; [
+    claude-code
     codex
+    cursor-agent
     pi
   ];
 
@@ -181,8 +197,27 @@ in
     ++ langPkgs
     ++ docPkgs
     ++ nixToolPkgs
+    ++ k8sPkgs
     ++ (lib.optionals pkgs.stdenv.isLinux linuxOnlyPkgs)
     ++ (lib.optionals pkgs.stdenv.isDarwin darwinOnlyPkgs);
+
+  xdg.configFile = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
+    "plasma-workspace/env/home-manager-path.sh".text = ''
+      export PATH="$PATH:${config.home.profileDirectory}/bin"
+    '';
+
+    "ghostty/config.ghostty" = {
+      force = true;
+      text = ''
+        working-directory = home
+        window-inherit-working-directory = false
+      '';
+    };
+  };
+
+  dconf.settings = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
+    "org/gnome/Ptyxis".restore-session = false;
+  };
 
   home.file = {
     # Allowed signers file for SSH commit verification
@@ -236,6 +271,13 @@ in
   }
   // lib.optionalAttrs pkgs.stdenv.isLinux {
     LOCALE_ARCHIVE = "/usr/lib/locale/locale-archive";
+  }
+  // lib.optionalAttrs (systemNssPreload != null) {
+    LD_PRELOAD = systemNssPreload;
+  };
+
+  systemd.user.sessionVariables = lib.optionalAttrs (systemNssPreload != null) {
+    LD_PRELOAD = systemNssPreload;
   };
 
   home.sessionPath = [
@@ -385,6 +427,7 @@ in
   # Bash configuration
   programs.bash = {
     enable = true;
+    enableCompletion = true;
 
     historyControl = [ "ignoreboth" ];
     historySize = 1000;
@@ -489,7 +532,10 @@ in
       [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
       [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
-      # Flux completion
+      # Kubernetes / OpenShift completions (guarded so a missing tool is a no-op)
+      command -v kubectl &>/dev/null && . <(kubectl completion bash)
+      command -v oc &>/dev/null && . <(oc completion bash)
+      command -v helm &>/dev/null && . <(helm completion bash)
       command -v flux &>/dev/null && . <(flux completion bash)
 
       # GPG passphrase prompt in terminal
@@ -541,6 +587,11 @@ in
       fetch.prune = true;
       fetch.pruneTags = true;
 
+      # Nicer listings for a rebase-heavy workflow
+      column.ui = "auto";
+      branch.sort = "-committerdate";
+      tag.sort = "-version:refname";
+
       # Remember conflict resolutions
       rerere.enabled = true;
       rerere.autoUpdate = true;
@@ -569,7 +620,7 @@ in
   # Delta for better git diffs
   programs.delta = {
     enable = true;
-    enableGitIntegration = false;
+    enableGitIntegration = true;
     options = {
       navigate = true;
       side-by-side = true;
